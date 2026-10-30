@@ -2,6 +2,7 @@
 import argparse
 import sys
 import json
+import os
 from pathlib import Path
 
 from backend.core.normalizer import normalize_all
@@ -14,6 +15,11 @@ from backend.scanners.sast import SASTScanner
 from backend.scanners.sca import SCAScanner
 from backend.scanners.secrets import SecretsScanner
 from backend.scanners.dast import DASTScanner
+from backend.core.risk_engine import compute_risk_score, summarize_by_severity
+
+# Import report generators
+from backend.reports.html_report import generate_html_report
+from backend.reports.sarif_report import generate_sarif_report
 
 
 def load_baseline(path):
@@ -98,8 +104,16 @@ def cmd_scan(args):
     gate = evaluate(new_findings, findings, policy,
                     baseline_available=baseline is not None)
 
+    # 6. Calculate Risk Score
+    risk_score = compute_risk_score(findings)
+    severity_counts = summarize_by_severity(findings)
+
     print()
     print("=" * 60)
+    print(f"📊 RISK SCORE: {risk_score}/100")
+    print(f"   Critical: {severity_counts['CRITICAL']} | High: {severity_counts['HIGH']} | Medium: {severity_counts['MEDIUM']} | Low: {severity_counts['LOW']}")
+    print("-" * 60)
+    
     if gate.passed:
         print(f"✅ GATE PASSED — {gate.reason}")
     else:
@@ -117,10 +131,23 @@ def cmd_scan(args):
             print(f"   ... and {len(gate.offending) - 10} more")
     print("=" * 60)
 
-    # 6. Save baseline if requested
+    # 7. Save baseline if requested
     if args.save_baseline:
         save_baseline(args.save_baseline, findings)
         print(f"📁 Baseline saved: {args.save_baseline}")
+
+    # 8. Generate HTML and SARIF Reports
+    os.makedirs("reports", exist_ok=True)
+    
+    html_content = generate_html_report("scan-1", findings, gate, risk_score)
+    with open("reports/latest_report.html", "w", encoding="utf-8") as f:
+        f.write(html_content)
+        
+    sarif_content = generate_sarif_report(findings)
+    with open("reports/latest_report.sarif", "w", encoding="utf-8") as f:
+        f.write(sarif_content)
+        
+    print("📁 Reports saved to 'reports/' folder (HTML & SARIF)")
 
     return 0 if gate.passed else 1
 
