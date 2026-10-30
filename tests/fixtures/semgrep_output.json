@@ -1,0 +1,24 @@
+{
+  "results": [
+    {
+      "check_id": "python.lang.security.audit.dangerous-subprocess-use",
+      "path": "app/utils.py",
+      "start": {"line": 15},
+      "extra": {
+        "message": "Subprocess call with shell=True identified",
+        "severity": "ERROR",
+        "metadata": {"cwe": ["CWE-78: OS Command Injection"]}
+      }
+    },
+    {
+      "check_id": "python.lang.security.audit.hardcoded-password",
+      "path": "app/config.py",
+      "start": {"line": 8},
+      "extra": {
+        "message": "Hardcoded password detected",
+        "severity": "WARNING",
+        "metadata": {"cwe": ["CWE-798: Use of Hard-coded Credentials"]}
+      }
+    }
+  ]
+}

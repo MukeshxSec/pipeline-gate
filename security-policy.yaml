@@ -1,0 +1,10 @@
+fail_on:
+  critical: 0
+  high: 5
+  medium: 20
+  low: null
+
+block_secrets: true
+baseline_enabled: true
+
+ignore: []

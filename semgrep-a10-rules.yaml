@@ -1,0 +1,13 @@
+rules:
+  - id: python.empty-except-block-a10
+    patterns:
+      - pattern: |
+          try:
+              ...
+          except:
+              pass
+    message: "A10: Empty except block swallows errors silently (fail-open risk)."
+    severity: WARNING
+    languages: [python]
+    metadata:
+      owasp: "A10:2025"

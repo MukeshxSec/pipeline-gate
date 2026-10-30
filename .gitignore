@@ -1,0 +1,36 @@
+﻿# Python
+__pycache__/
+*.py[cod]
+*.egg-info/
+.venv/
+venv/
+.pytest_cache/
+.coverage
+htmlcov/
+
+# Project
+pipeline_gate.db
+reports/*
+!reports/.gitkeep
+*.json
+!tests/fixtures/*.json
+!baseline.json
+
+# IDE
+.vscode/
+.idea/
+*.swp
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Env
+.env
+
+# Debug/temp files
+debug_pipeline.py
+debug_scan.py
+gl_*.json
+zap_report.json
+semgrep_raw.json
