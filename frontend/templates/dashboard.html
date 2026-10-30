@@ -1,0 +1,307 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Pipeline-Gate · Security Gate</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+<style>
+:root{--bg:#e9edf1;--sf:#fff;--sf2:#f5f7f9;--ink:#0e1a24;--mu:#5a6a78;--ln:#d8dfe6;--ac:#0b7a75;--acx:#fff;
+--fail:#b42318;--failb:#fde8e6;--pass:#067647;--passb:#e2f4ea;--warn:#a85a00;--warnb:#fdeed3;
+--crit:#7a1230;--high:#d92d20;--med:#e08a00;--low:#2877cf;--info:#8795a3;
+--sans:"Manrope",system-ui,sans-serif;--mono:"JetBrains Mono",ui-monospace,Consolas,monospace}
+[data-theme=dark]{--bg:#0a1016;--sf:#121b24;--sf2:#18232e;--ink:#e6edf3;--mu:#92a3b3;--ln:#243240;--ac:#3dd6c6;--acx:#06201d;
+--fail:#ff8a7e;--failb:#3a1b1e;--pass:#5fd39a;--passb:#11301f;--warn:#f5b45c;--warnb:#37270f;
+--crit:#ff7aa0;--high:#ff6b5e;--med:#f5a63d;--low:#6aa8ff;--info:#7b8b9b}
+*{box-sizing:border-box}html{color-scheme:light dark}[data-theme=dark]{color-scheme:dark}[data-theme=light]{color-scheme:light}
+body{margin:0;background:var(--bg);color:var(--ink);font:14.5px/1.5 var(--sans)}
+:focus-visible{outline:2px solid var(--ac);outline-offset:2px}
+button{font-family:inherit}
+header{display:flex;align-items:center;gap:16px;padding:12px 28px;background:var(--sf);border-bottom:1px solid var(--ln)}
+.logo{display:flex;align-items:center;gap:10px;font-weight:800;font-size:18px;letter-spacing:-.02em;margin-right:auto}
+.logo svg{color:var(--ac)}.logo small{font:500 11px var(--mono);color:var(--mu);border:1px solid var(--ln);border-radius:4px;padding:1px 6px}
+.btn{font:600 13.5px var(--sans);border:1px solid transparent;border-radius:8px;padding:9px 16px;cursor:pointer;background:var(--ac);color:var(--acx);display:inline-flex;align-items:center;gap:8px;justify-content:center}
+.btn:hover{filter:brightness(1.08)}.btn:disabled{opacity:.6;cursor:wait}
+.btn.g{background:transparent;color:var(--ink);border-color:var(--ln)}.btn.g:hover{background:var(--sf2)}
+.btn.w{background:var(--warnb);color:var(--warn);border-color:var(--warn)}.btn.s{padding:6px 11px;font-size:12.5px}
+.sp{width:13px;height:13px;border:2px solid currentColor;border-right-color:transparent;border-radius:50%;animation:rot .7s linear infinite}@keyframes rot{to{transform:rotate(360deg)}}
+.menu{position:relative}.menu div{display:none;position:absolute;right:0;top:110%;background:var(--sf);border:1px solid var(--ln);border-radius:8px;padding:4px;z-index:20;min-width:170px;box-shadow:0 8px 24px rgba(0,0,0,.18)}
+.menu.o div{display:block}.menu div button{display:block;width:100%;text-align:left;background:none;border:0;color:var(--ink);padding:8px 12px;border-radius:6px;cursor:pointer;font-size:13.5px}.menu div button:hover{background:var(--sf2)}
+/* pipeline hero */
+.pipe{display:flex;align-items:flex-start;max-width:1320px;margin:24px auto 0;padding:26px 28px;background:var(--sf);border:1px solid var(--ln);border-radius:14px;width:calc(100% - 56px)}
+.node{display:flex;flex-direction:column;align-items:center;text-align:center;width:104px;flex:none}
+.ring{width:56px;height:56px;border-radius:50%;display:grid;place-items:center;border:2px solid var(--ln);background:var(--sf2);color:var(--mu);transition:.3s;position:relative}
+.node b{margin-top:8px;font-size:13.5px}.node span{font-size:12px;color:var(--mu)}.node em{font:500 11.5px var(--mono);font-style:normal;min-height:17px;margin-top:3px;color:var(--mu)}
+.node.running .ring{border-color:var(--ac);color:var(--ac)}.node.running .ring::after{content:"";position:absolute;inset:-7px;border-radius:50%;border:2px solid var(--ac);opacity:.5;animation:pulse 1.2s ease-out infinite}
+@keyframes pulse{to{transform:scale(1.3);opacity:0}}
+.node.done .ring{border-color:var(--ac);background:var(--ac);color:var(--acx)}.node.skipped{opacity:.4}
+.node.locked .ring{border-color:var(--fail);background:var(--fail);color:#fff}.node.open .ring{border-color:var(--pass);background:var(--pass);color:#fff}.node.override .ring{border-color:var(--warn);background:var(--warn);color:#fff}
+.node.locked em{color:var(--fail)}.node.open em{color:var(--pass)}.node.override em{color:var(--warn)}
+.conn{flex:1;height:2px;background:var(--ln);margin-top:27px;position:relative;min-width:20px}.conn i{position:absolute;inset:0 auto 0 0;background:var(--ac);transition:width .5s}
+main{max-width:1320px;margin:20px auto 56px;padding:0 28px;display:grid;grid-template-columns:330px 1fr;gap:20px;align-items:start}
+@media(max-width:980px){main{grid-template-columns:1fr;padding:0 16px}.pipe{width:calc(100% - 32px);overflow-x:auto}header{padding:12px 16px}}
+.col{display:grid;gap:20px;min-width:0}
+.card{background:var(--sf);border:1px solid var(--ln);border-radius:12px;min-width:0}
+.card>h2{margin:0;font-size:14px;font-weight:700;padding:14px 18px;border-bottom:1px solid var(--ln);display:flex;justify-content:space-between;align-items:center}
+.card>h2 small{font-weight:500;color:var(--mu);font-size:12.5px}.pad{padding:16px 18px}
+.tg{display:flex;align-items:center;gap:12px;padding:11px 18px;border-bottom:1px solid var(--ln);cursor:pointer}
+.tg input{position:absolute;opacity:0}.tg .t{display:block;font-size:12.5px;color:var(--mu)}.tg b{font-weight:600}
+.sw{width:34px;height:19px;border-radius:19px;background:var(--ln);position:relative;flex:none;transition:.15s}.sw::after{content:"";position:absolute;top:2px;left:2px;width:15px;height:15px;border-radius:50%;background:#fff;transition:.15s}
+.tg input:checked+.sw{background:var(--ac)}.tg input:checked+.sw::after{transform:translateX(15px)}.tg input:focus-visible+.sw{outline:2px solid var(--ac);outline-offset:2px}
+label.f{display:block;font-size:12.5px;font-weight:600;margin-bottom:5px}
+input[type=url],input[type=text],select,textarea{width:100%;font:13px var(--mono);padding:9px 11px;border:1px solid var(--ln);border-radius:8px;background:var(--sf2);color:var(--ink)}
+textarea{font-family:var(--sans);min-height:76px;resize:vertical}
+input[type=range]{width:100%;accent-color:var(--ac)}
+.rule{display:flex;align-items:center;gap:10px;padding:9px 18px;border-bottom:1px solid var(--ln);font-size:13px}.rule:last-of-type{border:0}
+.rule .nm{flex:1}.rule .v{font:12px var(--mono);color:var(--mu)}
+.pill{font:700 11px var(--sans);padding:2px 9px;border-radius:20px;white-space:nowrap}.pill.ok{background:var(--passb);color:var(--pass)}.pill.no{background:var(--failb);color:var(--fail)}.pill.off{background:var(--sf2);color:var(--mu)}
+.sim{padding:12px 18px;font-weight:700;border-top:1px solid var(--ln);display:flex;justify-content:space-between;border-radius:0 0 12px 12px}
+.sim.ok{background:var(--passb);color:var(--pass)}.sim.no{background:var(--failb);color:var(--fail)}
+.hist{display:flex;justify-content:space-between;padding:8px 18px;font-size:12.5px;border-top:1px solid var(--ln);font-family:var(--mono)}
+.dot{width:8px;height:8px;border-radius:50%;display:inline-block;margin-right:6px}
+.empty{padding:60px 24px;text-align:center;color:var(--mu)}.empty b{display:block;color:var(--ink);font-size:16px;margin-bottom:4px}
+.verdict{display:grid;grid-template-columns:1fr auto;gap:12px 28px;padding:22px 24px;border-left:6px solid var(--fail);background:var(--failb);border-radius:12px 12px 0 0}
+.verdict.pass{border-color:var(--pass);background:var(--passb)}.verdict.over{border-color:var(--warn);background:var(--warnb)}
+.verdict h3{margin:0;font-size:26px;letter-spacing:-.02em;color:var(--fail)}.verdict.pass h3{color:var(--pass)}.verdict.over h3{color:var(--warn)}
+.verdict p{margin:3px 0 0}.mt{font:12px var(--mono);color:var(--mu);margin-top:8px}
+.score{text-align:right;min-width:150px}.score .n{font:500 40px/1 var(--mono)}.score .n small{font-size:15px;color:var(--mu)}
+.meter{height:6px;background:color-mix(in srgb,var(--ink) 12%,transparent);border-radius:6px;margin-top:9px;overflow:hidden}.meter i{display:block;height:100%;background:var(--fail)}.verdict.pass .meter i{background:var(--pass)}
+.stats{display:grid;grid-template-columns:repeat(5,1fr);border-bottom:1px solid var(--ln)}.stat{padding:12px 18px;border-right:1px solid var(--ln)}.stat:last-child{border:0}
+.stat .n{font:500 22px var(--mono)}.stat .l{font-size:12.5px;color:var(--mu)}
+.mx{display:grid;grid-template-columns:110px repeat(5,1fr);gap:4px;padding:16px 18px}
+.mx>div{padding:9px 6px;text-align:center;font:500 13px var(--mono);border-radius:6px}.mx .h{font:600 12px var(--sans);color:var(--mu)}.mx .rl{text-align:left;font:600 12.5px var(--sans)}
+.mx button{border:1px solid var(--ln);background:var(--sf2);color:var(--ink);border-radius:6px;font:500 13px var(--mono);padding:9px 6px;cursor:pointer}.mx button:hover{border-color:var(--ink)}
+.tools{display:flex;gap:8px;flex-wrap:wrap;padding:14px 18px;align-items:center}
+.chip{font:600 12.5px var(--sans);padding:5px 12px;border:1px solid var(--ln);border-radius:20px;background:none;color:var(--ink);cursor:pointer}.chip[aria-pressed=true]{background:var(--ink);color:var(--sf);border-color:var(--ink)}
+.tools input[type=text]{flex:1;min-width:150px;width:auto;font-family:var(--sans)}.tools select{width:auto;font-family:var(--sans)}
+.wrap{max-height:520px;overflow:auto}table{width:100%;border-collapse:collapse;font-size:13.5px}
+th{position:sticky;top:0;background:var(--sf);text-align:left;font-size:12px;color:var(--mu);padding:9px 18px;border-block:1px solid var(--ln)}
+td{padding:10px 18px;border-bottom:1px solid var(--ln);vertical-align:top}tr.r{cursor:pointer}tr.r:hover td{background:var(--sf2)}tr.r.tri td{opacity:.45}
+td.loc{font:12.5px var(--mono);word-break:break-all}.sev{display:inline-flex;align-items:center;font-weight:600;font-size:12.5px}
+.sc{font:12px var(--mono);padding:2px 7px;border-radius:4px;background:var(--sf2);border:1px solid var(--ln)}
+.foot{padding:11px 18px;font-size:12.5px;color:var(--mu)}
+.log{background:#0a1016;color:#a9e8dc;font:12px/1.7 var(--mono);padding:14px 18px;max-height:170px;overflow:auto;border-radius:0 0 12px 12px}.log div{white-space:pre-wrap}.log .d{color:#6d8191}
+#drawer{position:fixed;top:0;right:0;height:100%;width:min(440px,100%);background:var(--sf);border-left:1px solid var(--ln);box-shadow:-12px 0 32px rgba(0,0,0,.2);transform:translateX(105%);transition:transform .25s;z-index:30;overflow:auto}
+#drawer.on{transform:none}#drawer .hd{display:flex;justify-content:space-between;align-items:center;padding:16px 20px;border-bottom:1px solid var(--ln)}
+#drawer h4{margin:18px 0 4px;font-size:12.5px;color:var(--mu)}#drawer p{margin:0}.code{font:12.5px var(--mono);background:var(--sf2);border:1px solid var(--ln);border-radius:8px;padding:9px 11px;word-break:break-all}
+dialog{border:1px solid var(--ln);border-radius:14px;background:var(--sf);color:var(--ink);padding:0;width:min(460px,92vw)}dialog::backdrop{background:rgba(5,9,14,.65)}
+dialog h3{margin:0;padding:16px 22px;border-bottom:1px solid var(--ln)}.act{display:flex;justify-content:flex-end;gap:10px;padding:0 22px 20px}
+.toast{position:fixed;bottom:20px;left:50%;transform:translate(-50%,10px);background:var(--ink);color:var(--bg);padding:11px 18px;border-radius:8px;opacity:0;transition:.2s;pointer-events:none;z-index:50}.toast.on{opacity:1;transform:translate(-50%,0)}
+@media(prefers-reduced-motion:reduce){*{animation:none!important;transition:none!important}}
+</style>
+</head>
+<body>
+<header>
+  <div class="logo"><svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true"><path d="M12 2.500 4 5.500v6c0 4.700 3.200 8.600 8 10 4.800-1.400 8-5.300 8-10v-6l-8-3z"/><path d="m8.500 12 2.500 2.500 4.500-5"/></svg>Pipeline-Gate <small>v1.0</small></div>
+  <div class="menu" id="mx"><button class="btn g s" id="exb" aria-haspopup="true">Export</button><div>
+    <button data-x="json">Download JSON</button><button data-x="csv">Download CSV</button><button data-x="md">Copy summary (Markdown)</button></div></div>
+  <button class="btn g s" id="theme" aria-label="Toggle theme">Theme</button>
+</header>
+ 
+<section class="pipe" id="pipe" aria-label="Pipeline stages"></section>
+ 
+<main>
+  <div class="col">
+    <section class="card">
+      <h2>Scan setup</h2>
+      <label class="tg"><input type="checkbox" name="sc" value="sast" checked><span class="sw"></span><span><b>SAST</b><span class="t">Semgrep · source code</span></span></label>
+      <label class="tg"><input type="checkbox" name="sc" value="sca" checked><span class="sw"></span><span><b>SCA</b><span class="t">Trivy · dependencies</span></span></label>
+      <label class="tg"><input type="checkbox" name="sc" value="secrets" checked><span class="sw"></span><span><b>Secrets</b><span class="t">Gitleaks · hard-coded keys</span></span></label>
+      <label class="tg"><input type="checkbox" name="sc" value="dast" checked><span class="sw"></span><span><b>DAST</b><span class="t">OWASP ZAP · running app</span></span></label>
+      <div class="pad"><label class="f" for="target">DAST target URL</label><input id="target" type="url" value="http://localhost:3000">
+      <button class="btn" id="run" style="width:100%;margin-top:14px">Run scanners</button></div>
+    </section>
+    <section class="card">
+      <h2>Policy simulator <small>what-if</small></h2>
+      <div id="pol"></div>
+    </section>
+    <section class="card"><h2>Scan history <small id="hn"></small></h2><div id="hist"></div></section>
+  </div>
+ 
+  <div class="col" id="res">
+    <section class="card"><div class="empty"><b>No scan yet</b>Pick your scanners and select Run scanners. The pipeline above shows progress live.</div></section>
+  </div>
+</main>
+ 
+<aside id="drawer" aria-label="Finding details" aria-hidden="true"></aside>
+<dialog id="dlg"><h3>Override the gate</h3><div style="padding:20px 22px"><p style="margin:0 0 12px;color:var(--mu)">The pipeline will continue despite blocking findings. Your reason is recorded.</p>
+<label class="f" for="why">Reason for approval</label><textarea id="why" placeholder="e.g. Test fixtures only, ticket SEC-142"></textarea></div>
+<div class="act"><button class="btn g" id="cx">Cancel</button><button class="btn w" id="ok">Approve override</button></div></dialog>
+<div class="toast" id="toast" role="status"></div>
+ 
+<script>
+/* ---- Wire to your Flask routes ---- */
+const API={scan:"/api/scan",override:"/api/override",policy:"/api/policy"};
+const DEMO_FALLBACK=true; // true = if a scan fails, show clearly-labelled sample data instead of an empty page
+ 
+const $=s=>document.querySelector(s),$$=s=>[...document.querySelectorAll(s)];
+const esc=s=>String(s??"").replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
+const SEV=["CRITICAL","HIGH","MEDIUM","LOW","INFO"],COL={CRITICAL:"var(--crit)",HIGH:"var(--high)",MEDIUM:"var(--med)",LOW:"var(--low)",INFO:"var(--info)"},W={CRITICAL:40,HIGH:15,MEDIUM:4,LOW:1,INFO:0};
+const STAGES=[{id:"sast",n:"SAST",t:"Semgrep"},{id:"sca",n:"SCA",t:"Trivy"},{id:"secrets",n:"Secrets",t:"Gitleaks"},{id:"dast",n:"DAST",t:"OWASP ZAP"}];
+const IC={sast:'<path d="m8 8-4 4 4 4M16 8l4 4-4 4M13.5 5l-3 14"/>',sca:'<path d="M12 3 4 7v10l8 4 8-4V7l-8-4zM4 7l8 4 8-4M12 11v10"/>',secrets:'<circle cx="8" cy="15" r="4"/><path d="m11 12 8-8m-3 3 3 3"/>',dast:'<circle cx="12" cy="12" r="9"/><path d="M3 12h18M12 3c3 3.5 3 14.500 0 18M12 3c-3 3.500-3 14.500 0 18"/>',
+ lock:'<rect x="5" y="11" width="14" height="10" rx="2"/><path d="M8 11V8a4 4 0 0 1 8 0v3"/>',open:'<rect x="5" y="11" width="14" height="10" rx="2"/><path d="M8 11V8a4 4 0 0 1 7.5-1.5"/>',chk:'<path d="m5 12 5 5 9-10"/>'};
+const HINTS=[[/secret|key|token|password.*hard|gitleaks/i,"Credentials in source can be copied by anyone with repo access.","Revoke and rotate the credential now, remove it from git history, and load it from an environment variable or secret manager."],
+[/debug/i,"Debug mode can expose an interactive console and stack traces to attackers.","Set debug=False in production and control it with an environment variable."],
+[/bad_host|host/i,"Binding to 0.0.0.0 exposes the service on every network interface.","Bind to 127.0.0.1 or put the app behind a reverse proxy."],
+[/pickle/i,"Unpickling untrusted data can run arbitrary code.","Use JSON or another safe format, or sign and verify the data first."],
+[/shell/i,"shell=True lets crafted input inject extra commands.","Pass arguments as a list and set shell=False."],
+[/md5|sha1/i,"MD5 is fast to brute-force and unfit for passwords.","Use bcrypt, scrypt or argon2 for password hashing."],
+[/jinja|redos|injection|cve/i,"A vulnerable dependency version is in use.","Upgrade to the patched version listed by Trivy and re-run the scan."]];
+const hint=f=>(HINTS.find(h=>h[0].test(f.issue+" "+f.scanner))||[null,"This finding was reported by the scanner.","Review the rule documentation and fix or document an exception."]).slice(1);
+const stageOf=s=>/semgrep/i.test(s)?"sast":/trivy/i.test(s)?"sca":/gitleaks/i.test(s)?"secrets":/zap/i.test(s)?"dast":"";
+const DEMO={status:"FAILED",reason:"2 secret(s) detected",risk_score:99,findings:[
+{severity:"MEDIUM",scanner:"semgrep",location:"app.py:63",issue:"avoid_app_run_with_bad_host"},{severity:"MEDIUM",scanner:"semgrep",location:"app.py:63",issue:"debug-enabled"},
+{severity:"MEDIUM",scanner:"semgrep",location:"demo\\vulnerable_test.py:3",issue:"avoid-pickle"},{severity:"HIGH",scanner:"semgrep",location:"demo\\vulnerable_test.py:8",issue:"subprocess-shell-true"},
+{severity:"MEDIUM",scanner:"semgrep",location:"demo\\vulnerable_test2.py:5",issue:"md5-used-as-password"},{severity:"CRITICAL",scanner:"gitleaks",location:"config.py:12",issue:"Hard-coded API key"},
+{severity:"CRITICAL",scanner:"gitleaks",location:".env.bak:2",issue:"Hard-coded database password"},{severity:"MEDIUM",scanner:"trivy",location:"test-targets/requirements.txt",issue:"python-jinja2: ReDoS vulnerability in the urlize filter"},
+{severity:"MEDIUM",scanner:"trivy",location:"test-targets/requirements.txt",issue:"jinja2: HTML attribute injection via xmlattr filter"},{severity:"LOW",scanner:"zap",location:"http://localhost:3000/",issue:"Missing X-Content-Type-Options header"}]};
+ 
+let data=null,st={},gate="idle",over=false,sel=null,filt={sev:null,sc:"",q:""},pol={secret:true,crit:0,high:5,med:20},busy=false,timer=null;
+let tri={};try{tri=JSON.parse(localStorage.getItem("pg_tri")||"{}")}catch(e){}
+const key=f=>f.scanner+"|"+f.location+"|"+f.issue,live=()=>data.findings.filter(f=>!tri[key(f)]);
+const sleep=ms=>new Promise(r=>setTimeout(r,ms));
+function toast(m){const t=$("#toast");t.textContent=m;t.classList.add("on");setTimeout(()=>t.classList.remove("on"),2600)}
+const svg=p=>`<svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">${p}</svg>`;
+const score=a=>Math.min(100,a.reduce((s,f)=>s+(W[f.severity]||0),0));
+ 
+/* pipeline */
+function drawPipe(){
+  const on=$$("[name=sc]:checked").map(i=>i.value),all=on.every(i=>st[i]==="done")&&data&&!busy;
+  let h=STAGES.map((s,i)=>{const state=st[s.id]||(on.includes(s.id)?"idle":"skipped"),n=data?data.findings.filter(f=>stageOf(f.scanner)===s.id).length:null;
+    const lab=state==="done"&&n!==null?`${n} finding${n===1?"":"s"}`:state==="running"?"Scanning…":state==="skipped"?"Skipped":"";
+    return (i?`<div class="conn"><i style="width:${st[STAGES[i-1].id]==="done"?100:0}%"></i></div>`:"")+
+    `<div class="node ${state}"><div class="ring">${svg(state==="done"&&n===0?IC.chk:IC[s.id])}</div><b>${s.n}</b><span>${s.t}</span><em>${lab}</em></div>`}).join("");
+  const gl={idle:"Waiting",locked:"Blocked",open:"Open",override:"Overridden"}[gate];
+  h+=`<div class="conn"><i style="width:${all?100:0}%"></i></div><div class="node ${gate}"><div class="ring">${svg(gate==="open"||gate==="override"?IC.open:IC.lock)}</div><b>Gate</b><span>Policy check</span><em>${gl}</em></div>`;
+  $("#pipe").innerHTML=h;
+}
+ 
+/* run */
+function logLine(m,d){const l=$("#lg");if(!l)return;l.insertAdjacentHTML("beforeend",`<div><span class="d">${new Date().toLocaleTimeString()}</span> ${esc(m)}</div>`);l.scrollTop=1e9}
+async function run(){
+  const on=$$("[name=sc]:checked").map(i=>i.value);if(!on.length)return toast("Select at least one scanner.");
+  if(busy)return;busy=true;data=null;over=false;gate="idle";st={};filt={sev:null,sc:"",q:""};
+  const b=$("#run");b.disabled=true;b.innerHTML='<span class="sp"></span> Scanning…';
+  $("#res").innerHTML=`<section class="card"><h2>Live log</h2><div class="log" id="lg" style="border-radius:0 0 12px 12px"></div></section>`;
+  logLine("Starting scan: "+on.join(", "));
+  /* the real scan runs in the background while the pipeline animates */
+  let fin=null;
+  const scan=fetch(API.scan,{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({scanners:on,target_url:$("#target").value})})
+    .then(async x=>{const j=await x.json().catch(()=>({}));if(!x.ok)throw new Error(j.error||"HTTP "+x.status);return j})
+    .then(v=>({v}),e=>({e})).then(o=>(fin=o));
+  for(let j=0;j<on.length;j++){
+    const id=on[j];st[id]="running";drawPipe();logLine("Scanning "+id.toUpperCase()+"…");
+    await sleep(id==="dast"?4000:2500);
+    if(fin&&fin.e)break;                       /* scan already failed: stop animating */
+    if(j<on.length-1){st[id]="done";drawPipe();logLine(id.toUpperCase()+" finished.")}
+  }
+  logLine("Waiting for the policy gate…");
+  const out=await scan;let r,demo=false;
+  if(out.e){
+    logLine("Error: "+out.e.message);
+    if(!DEMO_FALLBACK){busy=false;st={};drawPipe();b.disabled=false;b.textContent="Run scanners";return toast("Scan failed. See the log for details.")}
+    logLine("Showing sample data instead.");r=JSON.parse(JSON.stringify(DEMO));demo=true;
+  }else r=out.v;
+  on.forEach(s=>st[s]="done");
+  (r.log||"").split("\n").filter(Boolean).forEach(l=>logLine(l));
+  r.demo=demo;r.findings=(r.findings||[]).sort((a,b)=>SEV.indexOf(a.severity)-SEV.indexOf(b.severity));data=r;busy=false;
+  gate=/pass/i.test(r.status)?"open":"locked";logLine("Gate verdict: "+r.status);
+  b.disabled=false;b.textContent="Run scanners";if(!demo)save();drawPipe();build();histDraw();polDraw();
+}
+ 
+/* results */
+function build(){
+  const d=data,f=d.findings,pass=gate==="open",cls=over?"over":pass?"pass":"",c=Object.fromEntries(SEV.map(s=>[s,f.filter(x=>x.severity===s).length])),
+  sc=[...new Set(f.map(x=>x.scanner))],rs=Number(d.risk_score??score(f)),total=d.total_findings??f.length,lg=$("#lg")?$("#lg").innerHTML:"";
+  $("#res").innerHTML=`<section class="card">
+  <div class="verdict ${cls}"><div><h3>${over?"Approved manually":pass?"Gate passed":"Gate failed"}</h3><p>${esc(d.reason||(pass?"No blocking findings.":"Blocking findings were detected."))}</p>
+   ${d.demo?'<div class="mt" style="color:var(--warn);font-weight:700">Sample data: the scan could not run, so these are not real results.</div>':""}<div class="mt">${sc.length} scanner${sc.length===1?"":"s"} reported · ${new Date().toLocaleString()}</div>
+   ${!pass&&!over&&!d.demo?'<p style="margin-top:14px"><button class="btn w" id="ovr">Request manual approval</button></p>':""}</div>
+   <div class="score"><div class="n">${rs.toFixed(0)}<small>/100</small></div><div style="font-size:12.5px;color:var(--mu)">Risk score</div><div class="meter" role="img" aria-label="Risk ${rs} of 100"><i style="width:${Math.min(rs,100)}%"></i></div></div></div>
+  <div class="stats"><div class="stat"><div class="n">${total}</div><div class="l">Total</div></div>${SEV.slice(0,4).map(s=>`<div class="stat"><div class="n">${c[s]}</div><div class="l"><i class="dot" style="background:${COL[s]}"></i>${s[0]+s.slice(1).toLowerCase()}</div></div>`).join("")}</div></section>
+  <section class="card"><h2>Risk matrix <small>select a cell to filter</small></h2><div class="mx"><div class="h"></div>${SEV.map(s=>`<div class="h">${s[0]+s.slice(1).toLowerCase()}</div>`).join("")}
+  ${sc.map(k=>`<div class="rl">${esc(k)}</div>`+SEV.map(s=>{const n=f.filter(x=>x.scanner===k&&x.severity===s).length;
+   return n?`<button data-s="${s}" data-k="${esc(k)}" style="background:color-mix(in srgb,${COL[s]} ${Math.min(18+n*10,70)}%,var(--sf2))" aria-label="${n} ${s} from ${esc(k)}">${n}</button>`:`<div style="color:var(--mu)">·</div>`}).join("")).join("")}</div></section>
+  <section class="card"><h2>Findings <small id="cnt"></small></h2>
+   <div class="tools"><button class="chip" data-v="" aria-pressed="true">All</button>${SEV.filter(s=>c[s]).map(s=>`<button class="chip" data-v="${s}" aria-pressed="false">${s[0]+s.slice(1).toLowerCase()} · ${c[s]}</button>`).join("")}
+   <select id="fs" aria-label="Scanner"><option value="">All scanners</option>${sc.map(s=>`<option>${esc(s)}</option>`).join("")}</select><input type="text" id="fq" placeholder="Search ( / )" aria-label="Search findings"></div>
+   <div class="wrap"><table><thead><tr><th>Severity</th><th>Scanner</th><th>Location</th><th>Issue</th></tr></thead><tbody id="tb"></tbody></table></div></section>
+  <section class="card"><h2>Live log</h2><div class="log" id="lg">${lg}</div></section>`;
+  const o=$("#ovr");if(o)o.onclick=()=>$("#dlg").showModal();
+  $$(".mx button").forEach(b=>b.onclick=()=>{filt.sev=b.dataset.s;filt.sc=b.dataset.k;$("#fs").value=b.dataset.k;chips();rows();$("#tb").scrollIntoView({block:"center",behavior:"smooth"})});
+  $$(".chip").forEach(b=>b.onclick=()=>{filt.sev=b.dataset.v||null;chips();rows()});
+  $("#fs").onchange=e=>{filt.sc=e.target.value;rows()};$("#fq").oninput=e=>{filt.q=e.target.value.toLowerCase();rows()};rows();
+}
+const chips=()=>$$(".chip").forEach(b=>b.setAttribute("aria-pressed",(b.dataset.v||null)===filt.sev));
+function rows(){
+  const l=data.findings.filter(x=>(!filt.sev||x.severity===filt.sev)&&(!filt.sc||x.scanner===filt.sc)&&(!filt.q||(x.location+" "+x.issue).toLowerCase().includes(filt.q)));
+  $("#tb").innerHTML=l.length?l.map(x=>{const t=tri[key(x)];return `<tr class="r ${t?"tri":""}" data-k="${esc(key(x))}" tabindex="0"><td><span class="sev"><i class="dot" style="background:${COL[x.severity]||COL.INFO}"></i>${esc(x.severity)}</span></td>
+  <td><span class="sc">${esc(x.scanner)}</span></td><td class="loc">${esc(x.location)}</td><td>${esc(x.issue)}${data.baseline&&x.is_new?' <span class="pill no">New</span>':""}${t?` <span class="pill off">${t==="fp"?"False positive":"Accepted"}</span>`:""}</td></tr>`}).join("")
+  :'<tr><td colspan="4" style="text-align:center;color:var(--mu);padding:30px">No findings match these filters.</td></tr>';
+  $("#cnt").textContent=`${l.length} of ${data.findings.length}`;
+  $$("tr.r").forEach(r=>{const f=data.findings.find(x=>key(x)===r.dataset.k);r.onclick=()=>openD(f);r.onkeydown=e=>{if(e.key==="Enter")openD(f)}});
+}
+ 
+/* drawer */
+function openD(f){sel=f;const[h1,h2]=hint(f),t=tri[key(f)],dr=$("#drawer");
+  dr.innerHTML=`<div class="hd"><b>Finding details</b><button class="btn g s" id="dc">Close</button></div><div style="padding:6px 20px 24px">
+  <h4>Severity</h4><span class="sev"><i class="dot" style="background:${COL[f.severity]}"></i>${esc(f.severity)}</span> <span class="sc" style="margin-left:6px">${esc(f.scanner)}</span>
+  <h4>Issue</h4><p style="font-weight:700;font-size:16px">${esc(f.issue)}</p>${f.description?`<p style="color:var(--mu);margin-top:6px">${esc(f.description)}</p>`:""}<h4>Location</h4><div class="code">${esc(f.location)}</div>
+  <h4>Why it matters</h4><p>${esc(h1)}</p><h4>How to fix</h4><p>${esc(h2)}</p><h4>Triage ${t?`<span class="pill off">${t==="fp"?"False positive":"Accepted"}</span>`:""}</h4>
+  <div style="display:flex;gap:8px;flex-wrap:wrap"><button class="btn g s" data-t="acc">Accept risk</button><button class="btn g s" data-t="fp">False positive</button>${t?'<button class="btn g s" data-t="">Reopen</button>':""}<button class="btn s" id="tk">Copy as ticket</button></div></div>`;
+  dr.classList.add("on");dr.setAttribute("aria-hidden","false");$("#dc").onclick=closeD;
+  $$("[data-t]").forEach(b=>b.onclick=()=>{b.dataset.t?tri[key(f)]=b.dataset.t:delete tri[key(f)];try{localStorage.setItem("pg_tri",JSON.stringify(tri))}catch(e){}rows();polDraw();openD(f);toast(b.dataset.t?"Finding triaged.":"Finding reopened.")});
+  $("#tk").onclick=()=>{navigator.clipboard?.writeText(`[${f.severity}] ${f.issue}\nScanner: ${f.scanner}\nLocation: ${f.location}\nWhy: ${h1}\nFix: ${h2}`);toast("Ticket text copied.")}}
+function closeD(){$("#drawer").classList.remove("on");$("#drawer").setAttribute("aria-hidden","true")}
+ 
+/* policy simulator */
+function polDraw(){
+  const el=$("#pol");if(!el)return;
+  const L=data?live().filter(f=>!data.baseline||f.is_new!==false):[],cnt=s=>L.filter(f=>f.severity===s).length,
+  sec=L.filter(f=>stageOf(f.scanner)==="secrets"||/secret|api key|password|token/i.test(f.issue)).length;
+  const R=[{nm:"Block any secret",v:sec+" found",ok:sec===0,tog:"secret"},
+   {nm:"Critical allowed",v:cnt("CRITICAL")+" / "+pol.crit,ok:cnt("CRITICAL")<=pol.crit,r:[0,10,"crit"]},
+   {nm:"High allowed",v:cnt("HIGH")+" / "+pol.high,ok:cnt("HIGH")<=pol.high,r:[0,20,"high"]},
+   {nm:"Medium allowed",v:cnt("MEDIUM")+" / "+pol.med,ok:cnt("MEDIUM")<=pol.med,r:[0,50,"med"]}];
+  const on=r=>!r.tog||pol[r.tog],pass=R.every(r=>!on(r)||r.ok),bad=R.filter(r=>on(r)&&!r.ok).length;
+  el.innerHTML=R.map(r=>`<div class="rule"><span class="nm">${r.nm}${r.r?`<input type="range" min="${r.r[0]}" max="${r.r[1]}" value="${pol[r.r[2]]}" data-r="${r.r[2]}" aria-label="${r.nm}">`:""}</span><span class="v">${data?r.v:""}</span>
+   ${r.tog?`<label class="tg" style="padding:0;border:0"><input type="checkbox" data-p="${r.tog}" ${pol[r.tog]?"checked":""}><span class="sw"></span></label>`:""}
+   ${data?`<span class="pill ${on(r)?(r.ok?"ok":"no"):"off"}">${on(r)?(r.ok?"Pass":"Fail"):"Off"}</span>`:""}</div>`).join("")+
+   (data?`<div class="sim ${pass?"ok":"no"}"><span>Simulated verdict</span><span>${pass?"Pass":bad+" rule"+(bad>1?"s":"")+" failed"}</span></div>`:`<div class="foot">Starts from security-policy.yaml. Run a scan to test changes.</div>`)+
+   `<div class="foot">Approximation only. The real gate decides on the server.</div>`;
+  $$("[data-p]").forEach(i=>i.onchange=()=>{pol[i.dataset.p]=i.checked;polDraw()});
+  $$("[data-r]").forEach(i=>i.oninput=()=>{pol[i.dataset.r]=+i.value;polDraw()});
+}
+ 
+/* history */
+function hist(){try{return JSON.parse(localStorage.getItem("pg_hist")||"[]")}catch(e){return[]}}
+function save(){const h=hist();h.push({t:Date.now(),s:gate==="open"?"PASSED":"FAILED",r:Number(data.risk_score??score(data.findings)),n:data.findings.length});try{localStorage.setItem("pg_hist",JSON.stringify(h.slice(-20)))}catch(e){}}
+function histDraw(){const h=hist();$("#hn").textContent=h.length?h.length+" runs":"";
+  const pts=h.slice(-12).map((x,i,a)=>`${a.length<2?0:i*(240/(a.length-1))},${44-x.r*0.4}`).join(" ");
+  $("#hist").innerHTML=h.length?`<div class="pad" style="padding-bottom:6px"><svg viewBox="0 0 240 48" width="100%" height="48" role="img" aria-label="Risk score trend"><polyline points="${pts}" fill="none" stroke="var(--ac)" stroke-width="2"/></svg></div>`+
+   h.slice(-5).reverse().map(x=>`<div class="hist"><span><i class="dot" style="background:${x.s==="PASSED"?"var(--pass)":"var(--fail)"}"></i>${new Date(x.t).toLocaleTimeString([], {hour:"2-digit",minute:"2-digit"})}</span><span>${x.n} findings · risk ${x.r}</span></div>`).join(""):'<div class="foot">Completed scans appear here with a risk trend.</div>'}
+ 
+/* export */
+function exp(k){if(!data)return toast("Run a scan first.");const F=data.findings;
+  if(k==="md"){const t=`## Pipeline-Gate: ${gate==="open"?"PASSED":over?"OVERRIDDEN":"FAILED"}\n${data.reason||""}\nRisk ${data.risk_score??score(F)}/100, ${F.length} findings\n\n`+F.map(f=>`- **${f.severity}** ${f.issue} (\`${f.location}\`, ${f.scanner})`).join("\n");navigator.clipboard?.writeText(t);return toast("Summary copied.")}
+  const body=k==="json"?JSON.stringify(data,null,2):"severity,scanner,location,issue\n"+F.map(f=>[f.severity,f.scanner,f.location,f.issue].map(v=>'"'+String(v).replace(/"/g,'""')+'"').join(",")).join("\n");
+  const a=document.createElement("a");a.href=URL.createObjectURL(new Blob([body],{type:"text/plain"}));a.download="pipeline-gate-report."+k;a.click()}
+ 
+/* wiring */
+$("#run").onclick=run;$$("[name=sc]").forEach(i=>i.onchange=()=>{if(!busy)drawPipe()});
+$("#exb").onclick=()=>$("#mx").classList.toggle("o");$$("[data-x]").forEach(b=>b.onclick=()=>{exp(b.dataset.x);$("#mx").classList.remove("o")});
+$("#theme").onclick=()=>{const r=document.documentElement,d=r.dataset.theme==="dark"?"light":"dark";r.dataset.theme=d;try{localStorage.setItem("pg_theme",d)}catch(e){}};
+$("#cx").onclick=()=>$("#dlg").close();
+$("#ok").onclick=async()=>{const w=$("#why").value.trim();if(!w)return toast("Add a reason to approve.");
+  try{await fetch(API.override,{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({reason:w})})}catch(e){}
+  over=true;gate="override";$("#dlg").close();$("#why").value="";drawPipe();build();toast("Override approved and recorded.")};
+document.addEventListener("keydown",e=>{if(e.key==="Escape")closeD();if(e.key==="/"&&$("#fq")&&!/INPUT|TEXTAREA/.test(document.activeElement.tagName)){e.preventDefault();$("#fq").focus()}});
+let th="light";try{th=localStorage.getItem("pg_theme")||(matchMedia("(prefers-color-scheme:dark)").matches?"dark":"light")}catch(e){}
+document.documentElement.dataset.theme=th;drawPipe();polDraw();histDraw();
+fetch(API.policy).then(r=>r.json()).then(p=>{pol.crit=p.critical??10;pol.high=p.high??20;pol.med=p.medium??50;pol.secret=!!p.block_secrets;polDraw()}).catch(()=>{});
+</script>
+</body>
+</html>
+ 

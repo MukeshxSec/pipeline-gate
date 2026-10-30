@@ -61,10 +61,12 @@ def cmd_scan(args):
     print(f"   Policy: {args.policy}")
     print()
 
-    # 1. Build scanner list — DAST only if URL provided
+    # 1. Build scanner list — DAST only if URL provided and not skipped
     scanners = [SASTScanner(), SCAScanner(), SecretsScanner()]
     dast_url = getattr(args, "target_url", None)
-    if dast_url:
+    skip_dast = getattr(args, "skip_dast", False)
+    
+    if dast_url and not skip_dast:
         scanners.append(DASTScanner())
 
     raw_outputs = {}
@@ -174,6 +176,7 @@ def main():
     scan_p = sub.add_parser("scan", help="Run security scan")
     scan_p.add_argument("--target", default=".", help="Directory or file to scan (SAST/SCA/Secrets)")
     scan_p.add_argument("--target-url", default=None, help="URL for DAST scanning (e.g., http://localhost:3000)")
+    scan_p.add_argument("--skip-dast", action="store_true", help="Skip DAST scan (used by GUI)")
     scan_p.add_argument("--policy", default="security-policy.yaml", help="Policy YAML file")
     scan_p.add_argument("--baseline", default=None, help="Baseline JSON file (previous findings)")
     scan_p.add_argument("--save-baseline", default=None, help="Save current findings as new baseline")
