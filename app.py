@@ -1,9 +1,7 @@
 """Flask Backend for Professional Pipeline-Gate UI."""
 from flask import Flask, render_template, request, jsonify
 import subprocess
-import json
 import re
-import os
 from pathlib import Path
 import yaml
 
@@ -16,7 +14,6 @@ app = Flask(
 
 @app.route("/", methods=["GET"])
 def dashboard():
-    # This serves the HTML you just pasted
     return render_template("dashboard.html")
 
 @app.route("/api/policy", methods=["GET"])
@@ -41,6 +38,10 @@ def api_scan():
     scanners = data.get("scanners", [])
     target_url = data.get("target_url")
 
+    # Clean the URL (removes #/ or trailing slashes which break ZAP)
+    if target_url:
+        target_url = target_url.split("#")[0].rstrip("/")
+
     # Build CLI command
     cmd = ["python", "cli.py", "scan", "--target", ".", "--policy", "security-policy.yaml"]
     
@@ -49,7 +50,7 @@ def api_scan():
     else:
         cmd.append("--skip-dast")
 
-    # Run the scanner
+    # Run the scanner and WAIT for it to finish
     subprocess.run(cmd, capture_output=True, text=True)
     
     # Read the generated HTML report to extract data
@@ -62,19 +63,24 @@ def api_scan():
     if report_path.exists():
         html_content = report_path.read_text(encoding="utf-8")
         
-        # Extract Status
-        if "Status: FAILED" in html_content:
+        # 1. Extract Status and Reason
+        if "Gate failed" in html_content or "Status: FAILED" in html_content:
             gate_failed = True
-            reason_match = re.search(r"Reason:</strong>\s*(.*?)</p>", html_content)
+            reason_match = re.search(r"<p>(.*?)</p>", html_content)
             reason = reason_match.group(1) if reason_match else "Policy violation"
             
-        # Extract Risk Score
-        score_match = re.search(r"Risk Score:</strong>\s*([\d.]+)", html_content)
+        # 2. Extract Risk Score
+        score_match = re.search(r"<div class=\"n\">(\d+)<small>/100</small>", html_content)
         if score_match:
             risk_score = float(score_match.group(1))
             
-        # Extract Findings from the table
-        rows = re.findall(r"<tr><td>([^<]+)</td><td>([^<]+)</td><td>([^<]+)</td><td>([^<]+)</td></tr>", html_content)
+        # 3. Extract Findings from the NEW professional table
+        # The HTML looks like: <tr class="r" data-s="CRITICAL"...><td><span class="sev">...</span></td><td><span class="sc">gitleaks</span></td><td class="loc">...</td><td>...</td></tr>
+        
+        # Extract Severity, Tool, Location, and Issue
+        pattern = r'<tr class="r" data-s="[^"]+".*?><td><span class="sev"><i class="dot[^"]*"></i>([A-Z]+)</span></td><td><span class="sc">([^<]+)</span></td><td class="loc">([^<]+)</td><td>([^<]+)'
+        rows = re.findall(pattern, html_content, re.DOTALL)
+        
         for r in rows:
             findings.append({
                 "severity": r[0].strip(),
